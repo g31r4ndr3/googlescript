@@ -1,0 +1,92 @@
+function LagTilbud() {
+  
+  //sett dato
+  var date = new Date();
+  
+  //sett tenketid, sett dokumentnavn og spesifiser dokument for å hente data
+  var sleepINT = 1500
+  var templateid = '<dokument adr på tilbudsmal>';
+  var ss = SpreadsheetApp.openById('<dokument adr på regneark med kundeinformasjon>');
+
+  Utilities.sleep(sleepINT);
+  
+  //spesifer ark fra dokumentmal
+  //lag variabler fra kolonner og hent data fra siste rad
+  var sheet = ss.getSheetByName('Ark 1'); //alternativ var sheet = ss.getSheets()[0]; (første ark)
+  var lastRow = sheet.getLastRow();
+  var data = sheet.getRange(lastRow,1).getValues();
+  var customercompany = sheet.getRange(lastRow, 1).getValues();
+  var customerorg = sheet.getRange(lastRow, 2).getValues();
+  var customersite = sheet.getRange(lastRow, 3).getValues();
+  var customername = sheet.getRange(lastRow, 4).getValues();
+  var customertitle = sheet.getRange(lastRow, 5).getValues();
+  var customerphone = sheet.getRange(lastRow, 6).getValues();
+  var customermail = sheet.getRange(lastRow, 7).getValues();
+  var emailstatus = sheet.getRange(lastRow, 8).getValues();
+
+  Utilities.sleep(sleepINT);
+  
+  //lag kopi av dokumentmal og erstatt innhold i nytt dokument
+  for (var i in data) {
+    var row = data[i];
+    var docid = DriveApp.getFileById(templateid).makeCopy().getId();
+    var doc = DocumentApp.openById(docid);
+    var body = doc.getActiveSection();
+    
+    body.replaceText('##customercompany##', customercompany);
+    body.replaceText('##customerorg##', customerorg);
+    body.replaceText('##customersite##', customersite);
+    body.replaceText('##customername##', customername);
+    body.replaceText('##customertitle##', customertitle);
+    body.replaceText('##customerphone##', customerphone);
+    body.replaceText('##customermail##', customermail);
+    body.replaceText('##date##', date);
+    
+    doc.saveAndClose();
+    
+    Utilities.sleep(sleepINT);
+    
+    //kopier modifisert fil til spesifisert mappe
+    var file = DriveApp.getFileById(doc.getId());  
+    var parentFolder = DriveApp.getFolderById('<sett adr for hvor dokumenter skal plasseres>');
+    var newfolder = parentFolder.createFolder(customercompany);
+   
+    newfolder.addFile(file);
+    
+    Utilities.sleep(sleepINT);
+    
+    var name = doc.getName();
+    var filename = doc.setName('DITTFIRMANAVN Tilbud for ' + customercompany);
+    var newname = doc.getName();
+    
+    Utilities.sleep(sleepINT);
+
+    //lag og send pdf version på mail
+    var pdffolder = newfolder;
+    var pdfFILE = DriveApp.getFileById(doc.getId()).getAs('application/pdf');
+    pdfFILE.setName(doc.getName() + '.pdf');
+    var theFolder = pdffolder;
+    var theFile = DriveApp.createFile(pdfFILE);
+    theFolder.addFile(theFile);
+    
+    Utilities.sleep(sleepINT);
+    
+    if (emailstatus !== '' ) {
+        //ved tom verdi i epost sendt status, sendes PDF og status oppdateres med dato sendt
+        var pdfEMAIL = DriveApp.getFileById(doc.getId()).getAs('application/pdf').getBytes();
+      var message = 'Hei ' + customername + '.\n' + '\nSender som avtalt tilbud for .\n' + '\nGi beskjed om noe er uklart.' + '\n\nMvh: DITTNAVN\nDITTMOBNR';
+        var emailAdd = sheet.getRange(lastRow, 7).getValue();
+        var emailTo = emailAdd;
+        var subject = 'DITTFIRMANAVN TILBUD';
+        
+        var attach = {fileName: newname + '.pdf',content:pdfEMAIL, mimeType:'application/pdf'};
+        MailApp.sendEmail(emailTo, subject, message, {attachments:[attach]});
+      
+      var emailstatusUpdate = sheet.getRange(lastRow, 8).setValue(date);
+      
+        Utilities.sleep(sleepINT);
+        
+        }
+      }
+  
+ }
